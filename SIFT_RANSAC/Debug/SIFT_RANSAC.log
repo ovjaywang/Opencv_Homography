@@ -1,0 +1,28 @@
+﻿生成启动时间为 2016/4/18 23:33:00。
+     1>项目“G:\GitHubWorkSpace\SIFT_RANSAC\SIFT_RANSAC\SIFT_RANSAC.vcxproj”在节点 2 上(Rebuild 个目标)。
+     1>ClCompile:
+         E:\Program Files\Microsoft Visual Studio 12.0\VC\bin\CL.exe /c /ZI /nologo /W3 /WX- /sdl /Od /Oy- /D WIN32 /D _DEBUG /D _CONSOLE /D _CRT_SECURE_NO_WARNINGS /D _UNICODE /D UNICODE /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"Debug\\" /Fd"Debug\vc120.pdb" /Gd /TP /analyze- /errorReport:prompt Findhomography.cpp ProcessStitching.cpp Stiching.cpp
+         Stiching.cpp
+     1>g:\githubworkspace\sift_ransac\sift_ransac\stiching.cpp(42): warning C4244: “初始化”: 从“int64”转换到“double”，可能丢失数据
+     1>g:\githubworkspace\sift_ransac\sift_ransac\stiching.cpp(55): warning C4018: “<”: 有符号/无符号不匹配
+     1>g:\githubworkspace\sift_ransac\sift_ransac\stiching.cpp(77): warning C4018: “<”: 有符号/无符号不匹配
+     1>g:\githubworkspace\sift_ransac\sift_ransac\stiching.cpp(89): warning C4018: “<”: 有符号/无符号不匹配
+     1>g:\githubworkspace\sift_ransac\sift_ransac\stiching.cpp(161): warning C4244: “初始化”: 从“int”转换到“float”，可能丢失数据
+     1>g:\githubworkspace\sift_ransac\sift_ransac\stiching.cpp(250): warning C4018: “<”: 有符号/无符号不匹配
+     1>g:\githubworkspace\sift_ransac\sift_ransac\stiching.cpp(315): warning C4244: “初始化”: 从“float”转换到“int”，可能丢失数据
+     1>g:\githubworkspace\sift_ransac\sift_ransac\stiching.cpp(365): warning C4244: “=”: 从“double”转换到“uchar”，可能丢失数据
+     1>g:\githubworkspace\sift_ransac\sift_ransac\stiching.cpp(366): warning C4244: “=”: 从“double”转换到“uchar”，可能丢失数据
+     1>g:\githubworkspace\sift_ransac\sift_ransac\stiching.cpp(367): warning C4244: “=”: 从“double”转换到“uchar”，可能丢失数据
+         ProcessStitching.cpp
+     1>g:\githubworkspace\sift_ransac\sift_ransac\processstitching.h(2): warning C4067: 预处理器指令后有意外标记 - 应输入换行符
+     1>g:\githubworkspace\sift_ransac\sift_ransac\processstitching.h(3): warning C4067: 预处理器指令后有意外标记 - 应输入换行符
+     1>g:\githubworkspace\sift_ransac\sift_ransac\findhomography.h(7): error C2011: “Findhomography”:“class”类型重定义
+                 g:\githubworkspace\sift_ransac\sift_ransac\findhomography.h(7) : 参见“Findhomography”的声明
+     1>g:\githubworkspace\sift_ransac\sift_ransac\stiching.h(15): error C2079: “Stiching::m_Findhomography”使用未定义的 class“Findhomography”
+         Findhomography.cpp
+         正在生成代码...
+     1>已完成生成项目“G:\GitHubWorkSpace\SIFT_RANSAC\SIFT_RANSAC\SIFT_RANSAC.vcxproj”(Rebuild 个目标)的操作 - 失败。
+
+生成失败。
+
+已用时间 00:00:03.18

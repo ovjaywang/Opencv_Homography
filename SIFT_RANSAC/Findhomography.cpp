@@ -1,17 +1,17 @@
-#include "Findhomography.h"
 #include <stdlib.h> 
 #include <stdio.h> 
 #include <math.h> 
 #include <cv.h> 
 #include <highgui.h> 
+#include "Findhomography.h"
 #define CLIP2(minv, maxv, value) (min(maxv, max(minv, value)))
-#define MAX_CORNERPOINT_NUM 10000 // max number of detected corner pts 
-#define T_SMALLEST_EIG 60 // thres. for the smallest eigenvalue method 
-#define W_SIZE 7  // window size used in corner detection 
-#define EUC_DISTANCE 10 // thres. for Euclidean distance for uniquness_corner 
-#define B_SIZE 30  // size for excluding boundary pixel 
-#define W_SIZE_MATCH 30 // window size used in NCC 
-#define T_DIST 30  // thres. for distance in RANSAC algorithm 
+#define MAX_CORNERPOINT_NUM 10000 // 最大检测角点数 过大貌似会内存溢出 
+#define T_SMALLEST_EIG 60 // thres. for the smallest eigenvalue method 最小特征值算法的阈值
+#define W_SIZE 7  // 角点检测的窗体 7*7 奇数
+#define EUC_DISTANCE 10 // 欧几里得距离的查找对应角点的阈值 
+#define B_SIZE 30  // 排除边界像素大小
+#define W_SIZE_MATCH 30 //NCC算法的窗体大小 
+#define T_DIST 30  // Ransac算法的阈值
 
 Findhomography::Findhomography()
 {
@@ -21,20 +21,13 @@ Findhomography::Findhomography()
 Findhomography::~Findhomography()
 {
 }
-
-//*************************************** 
-// RANSAC algorithm: 
-// Smallest eigenvalue method is used 
-// for corner detection; NCC is used for 
-// similarity measure 
-//*************************************** 
-
 //***************************************** 
 // Compute gradient based on Sobel operator 
 // input: image 
 // output: gradient_x, gradient_y 
+// Sobel检测算子的梯度计算 输出x y方向的梯度
 //***************************************** 
-void Gradient_Sobel(IplImage *img, CvMat* I_x, CvMat* I_y){
+void Findhomography::Gradient_Sobel(IplImage *img, CvMat* I_x, CvMat* I_y){
 	int width = img->width;
 	int height = img->height;
 	int i, j, ii, jj;
@@ -73,8 +66,9 @@ void Gradient_Sobel(IplImage *img, CvMat* I_x, CvMat* I_y){
 // double curr_cost (NCC value of curr_point) 
 // output: updated corner, corner_cost 
 // return ttl number of pts in queue 
+// 唯一角点算法 在邻域内排除错误角点
 //************************************************************* 
-int Corner_Uniqueness(CvPoint *corner, int num, double*corner_cost, CvPoint	curr_point, double curr_cost){
+int Findhomography::Corner_Uniqueness(CvPoint *corner, int num, double*corner_cost, CvPoint	curr_point, double curr_cost){
 	int i, j;
 	int idxnum = 0, newidx;
 	int *idx;
@@ -129,8 +123,9 @@ int Corner_Uniqueness(CvPoint *corner, int num, double*corner_cost, CvPoint	curr
 // input: img 
 // output: corner (detected corner pts) 
 // return the total number of detected corner pts 
+// 探测角点返回角点总数
 //************************************************************* 
-int DetectCorner(IplImage *img, CvPoint *corner){
+int Findhomography::DetectCorner(IplImage *img, CvPoint *corner){
 	int num = 0;
 	int i, j, ii, jj;
 	int height = img->height;
@@ -203,9 +198,13 @@ int DetectCorner(IplImage *img, CvPoint *corner){
 // p1, p2 (detected corner pts for each image x and x') 
 // num1, num2 (ttl number of detected pts for each image) 
 // output: m1, m2 (matched pairs) 
-// return the total number of matched pairs 
+// return the total number of matched pairs
+
+// NCC（归一化积）匹配算法 计算量较大 返回匹配点数 使用相似量度函数
+//Normalized Cross correlation (NCC)
+//NCC(u, v) = [(wl - w) / (| wl - w | )] * [(wr - w) / (| wr - w | )]
 //***************************************************************** 
-int CornerPointMatching_NCC(IplImage *img1, IplImage *img2, CvPoint *p1, int num1,CvPoint *p2, int num2, CvPoint2D64f *m1, CvPoint2D64f *m2){
+int Findhomography::CornerPointMatching_NCC(IplImage *img1, IplImage *img2, CvPoint *p1, int num1, CvPoint *p2, int num2, CvPoint2D64f *m1, CvPoint2D64f *m2){
 	int i, j, ii, jj, idx;
 	double cur_value;
 	double MAX_value;
@@ -297,9 +296,11 @@ int CornerPointMatching_NCC(IplImage *img1, IplImage *img2, CvPoint *p1, int num
 // input: p (pts to be checked) 
 // num (ttl number of pts) 
 // return true if some pts are coliner 
-// false if not 
+// false if not
+
+//判断是否是内点
 //***************************************** 
-bool isColinear(int num, CvPoint2D64f *p){
+bool Findhomography::isColinear(int num, CvPoint2D64f *p){
 	int i, j, k;
 	bool iscolinear;
 	double value;
@@ -345,10 +346,11 @@ bool isColinear(int num, CvPoint2D64f *p){
 // i.e., solve the optimization problem min ||Ah||=0 s.t. ||h||=1 
 // where A is 2n*9, h is 9*1 
 // input: n (number of pts pairs) 
-// p1, p2 (coresponded pts pairs x and x') 
+// p1, p2 (coresponded pts pairs x and x')
 // output: 3*3 matrix H 
+//解求最佳H矩阵
 //**************************************************************** 
-void ComputeH(int n, CvPoint2D64f *p1, CvPoint2D64f *p2, CvMat *H){
+void Findhomography::ComputeH(int n, CvPoint2D64f *p1, CvPoint2D64f *p2, CvMat *H){
 	int i;
 	CvMat *A = cvCreateMat(2 * n, 9, CV_64FC1);
 	CvMat *U = cvCreateMat(2 * n, 2 * n, CV_64FC1);
@@ -393,7 +395,7 @@ void ComputeH(int n, CvPoint2D64f *p1, CvPoint2D64f *p2, CvMat *H){
 // dist_std (std of the distance among all the inliers) 
 // return: number of inliers 
 //********************************************************************** 
-int ComputeNumberOfInliers(int num, CvPoint2D64f *p1, CvPoint2D64f *p2, CvMat *H,
+int Findhomography::ComputeNumberOfInliers(int num, CvPoint2D64f *p1, CvPoint2D64f *p2, CvMat *H,
 	CvMat *inlier_mask, double*dist_std){
 	int i, num_inlier;
 	double curr_dist, sum_dist, mean_dist;
@@ -464,7 +466,7 @@ int ComputeNumberOfInliers(int num, CvPoint2D64f *p1, CvPoint2D64f *p2, CvMat *H
 // NOTE: because of the normalization process, the pts coordinates should 
 // has accurcy as "float" or "double" insteadof "int" 
 //********************************************************************** 
-void Normalization(int num, CvPoint2D64f *p, CvMat *T){
+void Findhomography::Normalization(int num, CvPoint2D64f *p, CvMat *T){
 	double scale, tx, ty;
 	double meanx, meany;
 	double value;
@@ -511,7 +513,7 @@ void Normalization(int num, CvPoint2D64f *p, CvMat *T){
 // output: inlier_mask (indicate inlier pts pairs in (m1, m2) as 1; outlier: 0) 
 // H (the best homography matrix) 
 //***************************************************************************** 
-void RANSAC_homography(int num, CvPoint2D64f *m1, CvPoint2D64f *m2, CvMat *H,
+void Findhomography::RANSAC_homography(int num, CvPoint2D64f *m1, CvPoint2D64f *m2, CvMat *H,
 	CvMat *inlier_mask){
 	int i, j;
 	int N = 1000, s = 4, sample_cnt = 0;
@@ -589,7 +591,7 @@ void RANSAC_homography(int num, CvPoint2D64f *m1, CvPoint2D64f *m2, CvMat *H,
 	cvReleaseMat(&tmp_pt);
 	cvReleaseMat(&curr_inlier_mask);
 }
-int mmain(int argc, char*argv[])
+int Findhomography::dostiching(int argc, char*argv[])
 {
 	IplImage *img_1 = 0, *img_2 = 0, *gimg_1 = 0, *gimg_2 = 0;
 	IplImage *img_show0, *img_show1, *img_show2, *img_interp, *img_scene;
@@ -738,7 +740,7 @@ int mmain(int argc, char*argv[])
 			cvmSet(check, curpi, curpj, 1);
 		}
 	}
-	//interpolation 
+	//interpolation内插
 	img_interp = cvCloneImage(img_scene);
 	data_interp = (uchar *)img_interp->imageData;
 	data_scene = (uchar *)img_scene->imageData;

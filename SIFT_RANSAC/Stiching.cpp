@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <fstream>
 #include <iomanip>
+#include "Stiching.h"
 using namespace cv; 
 #define MAX_POINT_SIZE 20000
 
@@ -251,7 +252,7 @@ int main()
 		ofs << key1[i].pt.x << "   " << key1[i].pt.y << "   " << key2[i].pt.x << "   " << key2[i].pt.y << endl;
 #endif // _DEBUG
 	}
-
+	
 	cout << endl;
     // 显示计算F过后的内点匹配
 	Mat OutImage;

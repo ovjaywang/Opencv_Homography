@@ -152,10 +152,13 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Findhomography.cpp" />
+    <ClCompile Include="ProcessStitching.cpp" />
     <ClCompile Include="Stiching.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Findhomography.h" />
+    <ClInclude Include="ProcessStitching.h" />
+    <ClInclude Include="Stiching.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

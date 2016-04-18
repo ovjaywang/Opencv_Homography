@@ -21,9 +21,18 @@
     <ClCompile Include="Findhomography.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="ProcessStitching.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Findhomography.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Stiching.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="ProcessStitching.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
