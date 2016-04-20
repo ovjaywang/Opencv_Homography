@@ -1,3 +1,5 @@
+#pragma once
+
 #include <opencv2/nonfree/features2d.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/nonfree/nonfree.hpp>  
@@ -7,10 +9,12 @@
 #include "cxcore.h"
 #include <highgui.h>
 #include "Findhomography.h"
+using namespace cv;
 class Stiching
 {
 public:
 	Stiching();
 	~Stiching();
-	Findhomography m_Findhomography;
+	Findhomography m_Findhomography ;
+	int ProcessStitching(String strs[]);
 };

@@ -25,7 +25,7 @@ Findhomography::~Findhomography()
 // Compute gradient based on Sobel operator 
 // input: image 
 // output: gradient_x, gradient_y 
-// Sobel检测算子的梯度计算 输出x y方向的梯度
+// Sobel检测算子的梯度计算 输出x y方向的梯度 主要获取图像的一阶梯度
 //***************************************** 
 void Findhomography::Gradient_Sobel(IplImage *img, CvMat* I_x, CvMat* I_y){
 	int width = img->width;
@@ -204,7 +204,8 @@ int Findhomography::DetectCorner(IplImage *img, CvPoint *corner){
 //Normalized Cross correlation (NCC)
 //NCC(u, v) = [(wl - w) / (| wl - w | )] * [(wr - w) / (| wr - w | )]
 //***************************************************************** 
-int Findhomography::CornerPointMatching_NCC(IplImage *img1, IplImage *img2, CvPoint *p1, int num1, CvPoint *p2, int num2, CvPoint2D64f *m1, CvPoint2D64f *m2){
+int Findhomography::CornerPointMatching_NCC(IplImage *img1, IplImage *img2, CvPoint *p1, 
+		int num1, CvPoint *p2, int num2, CvPoint2D64f *m1, CvPoint2D64f *m2){
 	int i, j, ii, jj, idx;
 	double cur_value;
 	double MAX_value;
@@ -373,6 +374,7 @@ void Findhomography::ComputeH(int n, CvPoint2D64f *p1, CvPoint2D64f *p2, CvMat *
 		cvmSet(A, 2 * i + 1, 7, -p2[i].x*p1[i].y);
 		cvmSet(A, 2 * i + 1, 8, -p2[i].x);
 	}
+	
 	// SVD 
 	// The flags cause U and V to be returned transposed 
 	// Therefore, in OpenCV, A = U^T D V 
@@ -380,6 +382,40 @@ void Findhomography::ComputeH(int n, CvPoint2D64f *p1, CvPoint2D64f *p2, CvMat *
 	// take the last column of V^T, i.e., last row of V
 	for (i = 0; i<9; i++)
 		cvmSet(H, i / 3, i % 3, cvmGet(V, 8, i));
+	cvReleaseMat(&A);
+	cvReleaseMat(&U);
+	cvReleaseMat(&D);
+	cvReleaseMat(&V);
+}
+void Findhomography::ComputeH0(int n, CvPoint2D64f *p1, CvPoint2D64f *p2, CvMat *H){
+	int i;
+	CvMat *A = cvCreateMat(2 * n, 9, CV_64FC1);
+	CvMat *U = cvCreateMat(2 * n, 2 * n, CV_64FC1);
+	CvMat *D = cvCreateMat(2 * n, 9, CV_64FC1);
+	CvMat *V = cvCreateMat(9, 9, CV_64FC1);
+	cvZero(A);
+	for (i = 0; i<n; i++){
+		// 2*i row 
+		cvmSet(A, 2 * i, 3, -p1[i].x);
+		cvmSet(A, 2 * i, 4, -p1[i].y);
+		cvmSet(A, 2 * i, 5, -1);
+		cvmSet(A, 2 * i, 6, p2[i].y*p1[i].x);
+		cvmSet(A, 2 * i, 7, p2[i].y*p1[i].y);
+		cvmSet(A, 2 * i, 8, p2[i].y);
+		// 2*i+1 row 
+		cvmSet(A, 2 * i + 1, 0, p1[i].x);
+		cvmSet(A, 2 * i + 1, 1, p1[i].y);
+		cvmSet(A, 2 * i + 1, 2, 1);
+		cvmSet(A, 2 * i + 1, 6, -p2[i].x*p1[i].x);
+		cvmSet(A, 2 * i + 1, 7, -p2[i].x*p1[i].y);
+		cvmSet(A, 2 * i + 1, 8, -p2[i].x);
+	}
+	// SVD 
+	// The flags cause U and V to be returned transposed 
+	// Therefore, in OpenCV, A = U^T D V 
+	
+
+
 	cvReleaseMat(&A);
 	cvReleaseMat(&U);
 	cvReleaseMat(&D);
@@ -591,7 +627,7 @@ void Findhomography::RANSAC_homography(int num, CvPoint2D64f *m1, CvPoint2D64f *
 	cvReleaseMat(&tmp_pt);
 	cvReleaseMat(&curr_inlier_mask);
 }
-int Findhomography::dostiching(int argc, char*argv[])
+int Findhomography::dostiching(String sstr[])
 {
 	IplImage *img_1 = 0, *img_2 = 0, *gimg_1 = 0, *gimg_2 = 0;
 	IplImage *img_show0, *img_show1, *img_show2, *img_interp, *img_scene;
@@ -610,20 +646,17 @@ int Findhomography::dostiching(int argc, char*argv[])
 	
 	//argv[1] = "E://testPic/1.JPG";
 	//argv[2] = "E://testPic/2.JPG";
-	argv[1] = "E://testPic/1-1.JPG";
-	argv[2] = "E://testPic/1-2.JPG";
-
 
 	// load the color image1 and image2 
-	img_1 = cvLoadImage(argv[1]);
+	img_1 = cvLoadImage(sstr[0].c_str());
 	data_img1 = (uchar *)img_1->imageData;
 	if (!img_1){
-		printf("Could not load image file: %s\n", argv[1]);
+		printf("Could not load image file: %s\n", sstr[0].c_str());
 		exit(0);
 	}
-	img_2 = cvLoadImage(argv[2]);
+	img_2 = cvLoadImage(sstr[1].c_str());
 	if (!img_2){
-		printf("Could not load image file: %s\n", argv[2]);
+		printf("Could not load image file: %s\n", sstr[1].c_str());
 		exit(0);
 	}
 	height = img_1->height;
@@ -677,7 +710,8 @@ int Findhomography::dostiching(int argc, char*argv[])
 	cvSaveImage("cornerp2.jpg", img_show0);
 	// generate img_show1 
 	for (i = 0; i<num_matched; i++){
-		newmatched.x = (int)matched2[i].x + width + 5;
+		//newmatched.x = (int)matched2[i].x + width + 5;
+		newmatched.x = (int)matched2[i].x + width;
 		newmatched.y = (int)matched2[i].y;
 		cvLine(img_show1, cvPoint((int)matched1[i].x, (int)matched1[i].y),
 			newmatched, CV_RGB(rand() % 255, rand() % 255, rand() % 255), 1, 8, 0);
@@ -685,18 +719,20 @@ int Findhomography::dostiching(int argc, char*argv[])
 			CV_RGB(0, 255, 0), 2, 8, 0);
 		cvCircle(img_show1, newmatched, 1, CV_RGB(0, 255, 0), 2, 8, 0);
 	}
-	cvSaveImage("NCC_result.jpg", img_show1);
+	cvSaveImage("NCC_result.jpg", img_show1);//NCC分析结果
 	// RANSAC algorithm 
 	CvMat *H = cvCreateMat(3, 3, CV_64FC1);
 	CvMat *invH = cvCreateMat(3, 3, CV_64FC1);
 	CvMat *inlier_mask = cvCreateMat(num_matched, 1, CV_64FC1);
-	RANSAC_homography(num_matched, matched1, matched2, H, inlier_mask);
+	RANSAC_homography(num_matched, matched1, matched2, H, inlier_mask);//调用homography算法直接计算H
 	num_inlier = 0;
 	for (i = 0; i<num_matched; i++){
-		newmatched.x = (int)matched2[i].x + width + 5;
+		//newmatched.x = (int)matched2[i].x + width + 5;
+		newmatched.x = (int)matched2[i].x + width ;
 		newmatched.y = (int)matched2[i].y;
 		if (cvmGet(inlier_mask, i, 0) == 1){
-			// green points and lines show the inliers' correspondence 
+			// green points and lines show the inliers' correspondence
+			//绿点和线标识内集对应点
 			cvLine(img_show2, cvPoint((int)matched1[i].x, (int)matched1[i].y),
 				newmatched, CV_RGB(0, 255, 0), 1, 8, 0);
 			cvCircle(img_show2, cvPoint((int)matched1[i].x, (int)matched1[i].y), 1,
@@ -705,7 +741,8 @@ int Findhomography::dostiching(int argc, char*argv[])
 			num_inlier++;
 		}
 		else{
-			// red points and lines show the outliers' correspondence 
+			// red points and lines show the outliers' correspondence
+			//红点和连线标识外集对应点
 			cvLine(img_show2, cvPoint((int)matched1[i].x, (int)matched1[i].y),
 				newmatched, CV_RGB(255, 0, 0), 1, 8, 0);
 			cvCircle(img_show2, cvPoint((int)matched1[i].x, (int)matched1[i].y), 1,
