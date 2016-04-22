@@ -25,9 +25,11 @@ int Stiching::ProcessStitching(String strs[])
 {
 	ofstream ofs;
 	ofstream ofs_inline;
+	ofstream ofs_opencvinline;
 #ifdef _DEBUG
 	ofs.open("E:\\feature_matched.txt", ios_base::trunc | ios_base::in);
 	ofs_inline.open("E:\\inline_matched.txt", ios_base::trunc | ios_base::in);
+	ofs_opencvinline.open("E:\\inline_matched.txt", ios_base::trunc | ios_base::in);
 	ofs << "    X左            Y左             X右           Y右" << endl;
 #endif // _DEBUG
 	initModule_nonfree();//初始化模块，使用SIFT或SURF时用到 
@@ -52,10 +54,14 @@ int Stiching::ProcessStitching(String strs[])
 	vector<KeyPoint> m_LeftKey,m_RightKey;
 	detector->detect(roi_of_image1, m_LeftKey);//检测img1中的SIFT特征点，存储到m_LeftKey中  
 	detector->detect(roi_of_image2, m_RightKey);
+	//detector->detect(img1, m_LeftKey);//检测img1中的SIFT特征点，存储到m_LeftKey中  
+	//detector->detect(img2, m_RightKey);
 	cout<<"图像1特征点个数:"<<m_LeftKey.size()<<"\t\t图像2特征点个数:"<<m_RightKey.size()<<endl;  
 
 	//根据特征点计算特征描述子矩阵，即特征向量矩阵  
 	Mat descriptors1,descriptors2;  
+	descriptor_extractor->compute(img1, m_LeftKey, descriptors1);
+	descriptor_extractor->compute(img2, m_RightKey, descriptors2);
 	descriptor_extractor->compute(roi_of_image1, m_LeftKey, descriptors1);
 	descriptor_extractor->compute(roi_of_image2, m_RightKey, descriptors2);
 	double t1 = ((double)getTickCount() - t) / getTickFrequency();
@@ -81,9 +87,9 @@ int Stiching::ProcessStitching(String strs[])
 
 	//计算匹配结果中距离的最大和最小值  
 	//距离是指两个特征向量间的欧式距离，表明两个特征的差异，值越小表明两个特征点越接近  
-	double max_dist = 0;  
-	double min_dist = 100;
-	for(int i=0; i<matches.size(); i++)  
+	double max_dist = matches[0].distance;
+	double min_dist = matches[0].distance;
+	for(int i=1; i<matches.size(); i++)  
 	{  
 		double dist = matches[i].distance;  
 		if(dist < min_dist) min_dist = dist;  
@@ -97,7 +103,7 @@ int Stiching::ProcessStitching(String strs[])
 	//②第二次筛选 根据上一步初步得到的匹配点 计算欧几里得距离距离 与最大/最小作对比
 	for(int i=0; i<matches.size(); i++)  
 	{  
-		if(matches[i].distance < 0.2 * max_dist)  
+		if(matches[i].distance < 0.4 * max_dist)  
 			//这里 只选取最大值五分之一的 可以调整得更小以筛选更接近的点集 但匹配点会相对减少
 		//if (matches[i].distance < 3 * min_dist)
 		{  
@@ -184,66 +190,11 @@ int Stiching::ProcessStitching(String strs[])
 			InlinerCount++;
 		}
 	}
-
 	// 把内点转换为drawMatches可以使用的格式
 	vector<KeyPoint> key1(InlinerCount);
 	vector<KeyPoint> key2(InlinerCount);
 	KeyPoint::convert(m_LeftInlier, key1);
 	KeyPoint::convert(m_RightInlier, key2);
-
-	//CvMat* HH, *A, *B, X;
-	//double x[9];//数组x中的元素就是变换矩阵H中的值
-	//int i;
-
-	////输入点对个数不够4
-	////将变换矩阵H展开到一个8维列向量X中，使得AX=B，这样只需一次解线性方程组即可求出X，然后再根据X恢复H
-	///* set up matrices so we can unstack homography into X; AX = B */
-	//A = cvCreateMat(2 * key1.size(), 8, CV_64FC1);//创建2n*8的矩阵，一般是8*8
-	//B = cvCreateMat(2 * key1.size(), 1, CV_64FC1);//创建2n*1的矩阵，一般是8*1
-	//X = cvMat(8, 1, CV_64FC1, x);//创建8*1的矩阵，指定数据为x
-	//HH = cvCreateMat(3, 3, CV_64FC1);//创建3*3的矩阵
-	//cvZero(A);//将A清零
-
-	////由于是展开计算，需要根据原来的矩阵计算法则重新分配矩阵A和B的值的排列
-	//for (int ii = 0; ii < key1.size(); ii++)
-	//{
-	//	//cvmSet(A, i, 0, key1[i].pt.x);//设置矩阵A的i行0列的值为pts[i].x
-	//	//cvmSet(A, i + key1.size(), 3, key1[i].pt.x);
-	//	//cvmSet(A, i, 1, key1[i].pt.y);
-	//	//cvmSet(A, i + key1.size(), 4, key1[i].pt.y);
-	//	//cvmSet(A, i, 2, 1.0);
-	//	//cvmSet(A, i + key1.size(), 5, 1.0);
-	//	//cvmSet(A, i, 6, -key1[i].pt.x *  key2[i].pt.x);
-	//	//cvmSet(A, i, 7, -key1[i].pt.y *  key2[i].pt.x);
-	//	//cvmSet(A, i + key1.size(), 6, -key1[i].pt.x *  key2[i].pt.y);
-	//	//cvmSet(A, i + key1.size(), 7, -key1[i].pt.y *  key2[i].pt.y);
-	//	//cvmSet(B, i, 0, key2[i].pt.x);
-	//	//cvmSet(B, i + key1.size(), 0, key2[i].pt.y);
-
-	//	cvmSet(A, 2 * ii, 0, key1[ii].pt.x);//设置矩阵A的i行0列的值为pts[i].x
-	//	cvmSet(A, 2 * ii + 1, 3, key1[ii].pt.x);
-	//	cvmSet(A, 2 * ii, 1, key1[ii].pt.y);
-	//	cvmSet(A, 2 * ii + 1, 4, key1[ii].pt.y);
-	//	cvmSet(A, 2 * ii, 2, 1.0);
-	//	cvmSet(A, 2 * ii + 1, 5, 1.0);
-	//	cvmSet(A, 2 * ii, 6, -key1[ii].pt.x *  key2[ii].pt.x);
-	//	cvmSet(A, 2 * ii, 7, -key1[ii].pt.y *  key2[ii].pt.x);
-	//	cvmSet(A, 2 * ii + 1, 6, -key1[ii].pt.x *  key2[ii].pt.y);
-	//	cvmSet(A, 2 * ii + 1, 7, -key1[ii].pt.y *  key2[ii].pt.y);
-
-	//	cvmSet(B, 2 * ii, 0, key2[ii].pt.x);
-	//	cvmSet(B, 2 * ii + 1, 0, key2[ii].pt.y);
-	//}
-
-	////调用OpenCV函数，解线性方程组
-	//cvSolve(A, B, &X, CV_SVD);//求X，使得AX=B
-	//x[8] = 1.0;//变换矩阵的[3][3]位置的值为固定值1
-	//X = cvMat(3, 3, CV_64FC1, x);
-	//cvConvert(&X, HH);//将数组转换为矩阵
-
-	//cvReleaseMat(&A);
-	//cvReleaseMat(&B);
-	//cout <<endl<< "--SVM算法计算结果为--   " << endl;
 	//for (int row = 0; row < (*HH).rows; row++)
 	//{
 	//	float* pptr = (float*)((*HH).data.ptr + row * (*HH).step);//第row行数据的起始指针
@@ -267,11 +218,12 @@ int Stiching::ProcessStitching(String strs[])
 		matched2[i].y = key2[i].pt.y;
 #endif // _DEBUG
 	}
-	CvMat *HH = cvCreateMat(3, 3, CV_64FC1);
+	CvMat *HH1 = cvCreateMat(3, 3, CV_64FC1);
 	CvMat *inlier_mask = cvCreateMat(key1.size(), 1, CV_64FC1);
 	
 	Findhomography homo;
-	homo.RANSAC_homography(key1.size(), matched1, matched2, HH, inlier_mask);
+	homo.RANSAC_homography(key1.size(), matched1, matched2, HH1, inlier_mask);
+
 	CvPoint newmatched;
 	int num_inlier = 0;
 	for (int i = 0; i<key1.size(); i++){
@@ -280,19 +232,16 @@ int Stiching::ProcessStitching(String strs[])
 			num_inlier++;
 		}
 	}
+	cout <<endl<< "生写Ransac算法计算结果 :  " << endl;
 	printf("内点个数为 : %d\n", num_inlier);
-
-
-
-	cout <<endl<< "--直接Ransac算法计算结果为--   " << endl;
-	double c33 = cvmGet(HH, 2, 2);
-	for (int row = 0; row < (*HH).rows; row++)
+	double c33 = cvmGet(HH1, 2, 2);
+	for (int row = 0; row < (*HH1).rows; row++)
 	{
 		//float* pptr = (float*)((*HH).data.ptr + row * (*HH).step);//第row行数据的起始指针
-		for (int col = 0; col < (*HH).cols; col++)
+		for (int col = 0; col < (*HH1).cols; col++)
 		{
 			//cout << *(pptr + 1 * col) <<"  ";
-			cout << cvmGet(HH, row, col)/c33 << "\t";
+			cout << cvmGet(HH1, row, col)/c33 << "\t";
 		}
 		cout << endl;
 	}
@@ -312,8 +261,26 @@ int Stiching::ProcessStitching(String strs[])
 
 
 	//④第四次筛选 在解算H时一边Ransac一边选择最大一只鸡
-	Mat H = findHomography(m_LeftInlier, m_RightInlier, RANSAC);
-	cout<< endl<< H << endl;
+	Mat tempMask = Mat::ones(m_LeftInlier.size(), 1, CV_8U);
+	int opencv_Inlier = 0;
+	Mat H = findHomography(m_LeftInlier, m_RightInlier, tempMask, RANSAC);
+
+	vector<Point2f> cv_Leftinlier;
+	vector<Point2f> cv_Rigthinlier;
+	cv_Leftinlier.resize(0);
+	cv_Rigthinlier.resize(0);
+	for (int i = 0; i<m_LeftInlier.size(); i++){
+		if (tempMask.at<uchar>(i, 0) == 1){
+			opencv_Inlier++;
+			cv_Leftinlier.resize(opencv_Inlier, Point2f(m_LeftInlier[i].x, m_LeftInlier[i].y));
+			cv_Rigthinlier.resize(opencv_Inlier, Point2f(m_RightInlier[i].x, m_RightInlier[i].y));
+			ofs_opencvinline << m_LeftInlier[i].x << "\t" << m_LeftInlier[i].y << "\t" << m_RightInlier[i].x << "\t" << m_RightInlier[i].y << endl;
+		}
+	}
+	double min_dis, max_dis, mean_dis, middle_dis;
+	homo.getAverageDis(opencv_Inlier, cv_Leftinlier, cv_Rigthinlier, H, min_dis, max_dis, mean_dis, middle_dis);
+	cout << "opencv的内点个数为" << endl << opencv_Inlier << endl;
+//	cout<< endl<< H << endl;
 
 	//double aa1 = 1.045972;
 	//double aa2 = -0.000410;
@@ -324,27 +291,27 @@ int Stiching::ProcessStitching(String strs[])
 	//double cc1 = 0.000010;
 	//double cc2 = -0.000005;
 	//double cc3 = 1;
-	double aa1 = 1.027131;
-	double aa2 = 0.007651;
-	double aa3 = -2985.513937;
-	double bb1 = 0.002849;
-	double bb2 = 1.017038;
-	double bb3 = 18.118161;
-	double cc1 = 0.000005;
-	double cc2 = 0.000005;
-	double cc3 = 1;
+	//double aa1 = 1.027131;
+	//double aa2 = 0.007651;
+	//double aa3 = -2985.513937;
+	//double bb1 = 0.002849;
+	//double bb2 = 1.017038;
+	//double bb3 = 18.118161;
+	//double cc1 = 0.000005;
+	//double cc2 = 0.000005;
+	//double cc3 = 1;
 
-	H.at<double>(0, 0) = aa1 / cc3;
-	H.at<double>(0, 1) = aa2 / cc3;
-	H.at<double>(0, 2) = aa3/ cc3;
-	H.at<double>(1, 0) = bb1 / cc3;
-	H.at<double>(1, 1) = bb2 / cc3;
-	H.at<double>(1, 2) = bb3 / cc3;
-	H.at<double>(2, 0) = cc1 / cc3;
-	H.at<double>(2, 1) = cc2 / cc3;
-	H.at<double>(2, 2) = 1;
-
-	cout <<endl<< H << endl;
+	//H.at<double>(0, 0) = aa1 / cc3;
+	//H.at<double>(0, 1) = aa2 / cc3;
+	//H.at<double>(0, 2) = aa3/ cc3;
+	//H.at<double>(1, 0) = bb1 / cc3;
+	//H.at<double>(1, 1) = bb2 / cc3;
+	//H.at<double>(1, 2) = bb3 / cc3;
+	//H.at<double>(2, 0) = cc1 / cc3;
+	//H.at<double>(2, 1) = cc2 / cc3;
+	//H.at<double>(2, 2) = 1;
+	cout << "opencv解算总数 ：" << m_LeftInlier.size() << "   内点个数 : " << endl << opencv_Inlier << endl;
+	cout << "opecv解算的投影矩阵H" << endl << H << endl;
 	//存储左图四角，及其变换到右图位置
 	std::vector<Point2f> obj_corners(4);
 	obj_corners[0] = Point(0,0); obj_corners[1] = Point( img1.cols, 0 );
@@ -385,7 +352,6 @@ int Stiching::ProcessStitching(String strs[])
 	//获取新的变换矩阵，使图像完整显示
 	for (int i=0;i<4;i++) {scene_corners[i].x -= origin_x; } 	//横拼  可选纵拼：scene_corners[i].y -= (float)origin_y; }
 	Mat H1=getPerspectiveTransform(obj_corners, scene_corners);
-	cout <<endl<< H1 << endl;
 	//对左图进行图像变换，显示效果
 	warpPerspective(img1,imageturn,H1,Size(width,height));	
 //	imshow("image_Perspective", imageturn);
@@ -415,7 +381,6 @@ int Stiching::ProcessStitching(String strs[])
 				*ptr_c1=(*ptr2_c1);
 				*ptr_c2=(*ptr2_c2);
 			}
-
 			*ptr=(*ptr)*beta+(*ptr2)*alpha;
 			*ptr_c1=(*ptr_c1)*beta+(*ptr2_c1)*alpha;
 			*ptr_c2=(*ptr_c2)*beta+(*ptr2_c2)*alpha;
@@ -463,7 +428,7 @@ int Stiching::ProcessStitching(String strs[])
 		}	
 	}
 
-	imshow("image_result", img_result);
+	//imshow("image_result", img_result);
 	cvSaveImage("E:\\final_result.jpg", &IplImage(img_result));
 	//	while(1)
 	//{

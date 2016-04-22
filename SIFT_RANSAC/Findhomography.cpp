@@ -327,7 +327,7 @@ bool Findhomography::isColinear(int num, CvPoint2D64f *p){
 				cvmSet(pt3, 2, 0, 1);
 				// check whether pt3 on the line 
 				value = cvDotProduct(pt3, line);
-				if (abs(value) < 10e-2){
+				if (abs(value) < 50e-2){
 					iscolinear = true;
 					break;
 				}
@@ -342,6 +342,55 @@ bool Findhomography::isColinear(int num, CvPoint2D64f *p){
 	cvReleaseMat(&line);
 	return iscolinear;
 }
+void Findhomography::getAverageDis(int n, vector<Point2f> p1, vector<Point2f> p2, Mat H, double &min_dis, double &max_dis, double& mean_dis, double &middle_dis){
+	double dis = 0;
+	vector<double> p_tmp;
+	p_tmp.resize(n);
+	double a11 = H.at<double>(0, 0); double a12 = H.at<double>(0, 1); double a13 = H.at<double>(0, 2);
+	double a21 = H.at<double>(1, 0); double a22= H.at<double>(1, 1); double a23 = H.at<double>(1, 2);
+	double a31 = H.at<double>(2, 0); double a32 = H.at<double>(2, 1); double a33 = H.at<double>(2, 2);
+	for (int i = 0; i<n; i++){
+		p_tmp[i] = sqrt(pow((a11 * p1[i].x + a12 * p1[i].y + a13) / (a31 *p1[i].x + a32 *p1[i].y + 1) - p2[i].x, 2.0)
+			+ pow((a21 * p1[i].x + a22 * p1[i].y + a23) / (a31 *p1[i].x + a32 *p1[i].y + 1) - p2[i].y, 2.0));
+		dis +=p_tmp[i];
+	}
+	Qsort(p_tmp, 0, n - 1);
+	cout << "最小值 ：" << p_tmp[0] << "  最大值 :" << p_tmp[n - 1] << " 中值 :" << p_tmp[(n - 1) / 2] << "均值为 ： " << dis / n << endl;
+}
+void Findhomography::Qsort(vector<double> &a, int low, int high)
+{
+	if (low >= high)
+	{
+		return;
+	}
+	int first = low;
+	int last = high;
+	double key = a[first];/*用字表的第一个记录作为枢轴*/
+
+	while (first < last)
+	{
+		while (first < last && a[last] >= key)
+		{
+			--last;
+		}
+
+		a[first] = a[last];/*将比第一个小的移到低端*/
+
+		while (first < last && a[first] <= key)
+		{
+			++first;
+		}
+
+		a[last] = a[first];
+		/*将比第一个大的移到高端*/
+	}
+	a[first] = key;/*枢轴记录到位*/
+	Qsort(a, low, first - 1);
+	Qsort(a, first + 1, high);
+}
+
+
+
 //**************************************************************** 
 // Compute the homography matrix H 
 // i.e., solve the optimization problem min ||Ah||=0 s.t. ||h||=1 
@@ -382,40 +431,6 @@ void Findhomography::ComputeH(int n, CvPoint2D64f *p1, CvPoint2D64f *p2, CvMat *
 	// take the last column of V^T, i.e., last row of V
 	for (i = 0; i<9; i++)
 		cvmSet(H, i / 3, i % 3, cvmGet(V, 8, i));
-	cvReleaseMat(&A);
-	cvReleaseMat(&U);
-	cvReleaseMat(&D);
-	cvReleaseMat(&V);
-}
-void Findhomography::ComputeH0(int n, CvPoint2D64f *p1, CvPoint2D64f *p2, CvMat *H){
-	int i;
-	CvMat *A = cvCreateMat(2 * n, 9, CV_64FC1);
-	CvMat *U = cvCreateMat(2 * n, 2 * n, CV_64FC1);
-	CvMat *D = cvCreateMat(2 * n, 9, CV_64FC1);
-	CvMat *V = cvCreateMat(9, 9, CV_64FC1);
-	cvZero(A);
-	for (i = 0; i<n; i++){
-		// 2*i row 
-		cvmSet(A, 2 * i, 3, -p1[i].x);
-		cvmSet(A, 2 * i, 4, -p1[i].y);
-		cvmSet(A, 2 * i, 5, -1);
-		cvmSet(A, 2 * i, 6, p2[i].y*p1[i].x);
-		cvmSet(A, 2 * i, 7, p2[i].y*p1[i].y);
-		cvmSet(A, 2 * i, 8, p2[i].y);
-		// 2*i+1 row 
-		cvmSet(A, 2 * i + 1, 0, p1[i].x);
-		cvmSet(A, 2 * i + 1, 1, p1[i].y);
-		cvmSet(A, 2 * i + 1, 2, 1);
-		cvmSet(A, 2 * i + 1, 6, -p2[i].x*p1[i].x);
-		cvmSet(A, 2 * i + 1, 7, -p2[i].x*p1[i].y);
-		cvmSet(A, 2 * i + 1, 8, -p2[i].x);
-	}
-	// SVD 
-	// The flags cause U and V to be returned transposed 
-	// Therefore, in OpenCV, A = U^T D V 
-	
-
-
 	cvReleaseMat(&A);
 	cvReleaseMat(&U);
 	cvReleaseMat(&D);
