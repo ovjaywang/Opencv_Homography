@@ -21,7 +21,10 @@
     <ClCompile Include="Findhomography.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="ProcessStitching.cpp">
+    <ClCompile Include="Main.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="HomographyAjustment.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
@@ -32,7 +35,10 @@
     <ClInclude Include="Stiching.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="ProcessStitching.h">
+    <ClInclude Include="Main.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="HomographyAjustment.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

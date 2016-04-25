@@ -926,7 +926,7 @@ int Findhomography::dostiching(String sstr[])
 	cvReleaseImage(&img_show2);
 	cvReleaseImage(&img_scene);
 	cvReleaseImage(&img_interp);
-	system("pause");
+	//system("pause");
 	return 0;
 }
 

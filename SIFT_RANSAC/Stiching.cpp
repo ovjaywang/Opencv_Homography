@@ -21,7 +21,7 @@ Stiching::Stiching(){
 Stiching::~Stiching(){
 
 }
-int Stiching::ProcessStitching(String strs[])
+int Stiching::ProcessStitching(String strs[],double wid,double up_hei,double down_hei)
 {
 	ofstream ofs;
 	ofstream ofs_inline;
@@ -29,7 +29,7 @@ int Stiching::ProcessStitching(String strs[])
 #ifdef _DEBUG
 	ofs.open("E:\\feature_matched.txt", ios_base::trunc | ios_base::in);
 	ofs_inline.open("E:\\inline_matched.txt", ios_base::trunc | ios_base::in);
-	ofs_opencvinline.open("E:\\inline_matched.txt", ios_base::trunc | ios_base::in);
+	ofs_opencvinline.open("E:\\opencv_matched.txt", ios_base::trunc | ios_base::in);
 	ofs << "    X左            Y左             X右           Y右" << endl;
 #endif // _DEBUG
 	initModule_nonfree();//初始化模块，使用SIFT或SURF时用到 
@@ -95,17 +95,17 @@ int Stiching::ProcessStitching(String strs[])
 		if(dist < min_dist) min_dist = dist;  
 		if(dist > max_dist) max_dist = dist;  
 	}  
-	cout<<"最大距离："<<max_dist<<endl;  
-	cout<<"最小距离："<<min_dist<<endl;  
+	cout<<"最大距离："<<max_dist<<endl;
+	cout<<"最小距离："<<min_dist<<endl;
 
 	//筛选出较好的匹配点  
 	vector<DMatch> goodMatches;
 	//②第二次筛选 根据上一步初步得到的匹配点 计算欧几里得距离距离 与最大/最小作对比
 	for(int i=0; i<matches.size(); i++)  
 	{  
-		if(matches[i].distance < 0.4 * max_dist)  
+		//if(matches[i].distance < 0.4 * max_dist)  
 			//这里 只选取最大值五分之一的 可以调整得更小以筛选更接近的点集 但匹配点会相对减少
-		//if (matches[i].distance < 3 * min_dist)
+		if (matches[i].distance < 100 * min_dist)
 		{  
 			goodMatches.push_back(matches[i]);  
 		}  
@@ -162,7 +162,7 @@ int Stiching::ProcessStitching(String strs[])
 		}
 	}
 	int InlinerCount = ptCount - OutlinerCount;   // 计算内点
-	cout<<"总点数为 ： "<<m_RANSACStatus.size()<<"  内点数为："<<InlinerCount<<endl;
+	cout << "总点数为 ： " << m_RANSACStatus.size() << "  Fundamental内点数为：" << InlinerCount << endl << endl;
 
 	
    // 这三个变量用于保存内点和匹配关系
@@ -223,18 +223,27 @@ int Stiching::ProcessStitching(String strs[])
 	
 	Findhomography homo;
 	homo.RANSAC_homography(key1.size(), matched1, matched2, HH1, inlier_mask);
-
+	Mat H_input = Mat::Mat(HH1, true);
+	vector<double> xLSet;
+	vector<double> yLSet;
+	vector<double> xRSet;
+	vector<double> yRSet;
 	CvPoint newmatched;
 	int num_inlier = 0;
 	for (int i = 0; i<key1.size(); i++){
 		if (cvmGet(inlier_mask, i, 0) == 1){
 			ofs_inline << matched1[i].x << "\t" << matched1[i].y << "\t" << matched2[i].x << "\t" << matched2[i].y << endl;
+			//xLSet.push_back(matched1[i].x);
+			//yLSet.push_back(matched1[i].y);
+			//xRSet.push_back(matched2[i].x);
+			//yRSet.push_back(matched2[i].y);
 			num_inlier++;
 		}
 	}
-	cout <<endl<< "生写Ransac算法计算结果 :  " << endl;
-	printf("内点个数为 : %d\n", num_inlier);
+	
+	printf("输入%d个控制点，Rasac解算内点个数为 : %d\n",key1.size(), num_inlier);
 	double c33 = cvmGet(HH1, 2, 2);
+	cout  << "【自写Ransac算法H】" << endl;
 	for (int row = 0; row < (*HH1).rows; row++)
 	{
 		//float* pptr = (float*)((*HH).data.ptr + row * (*HH).step);//第row行数据的起始指针
@@ -245,6 +254,7 @@ int Stiching::ProcessStitching(String strs[])
 		}
 		cout << endl;
 	}
+	cout << endl;
     // 显示计算F过后的内点匹配
 	Mat OutImage;
 	drawMatches(img1, key1, img2, key2, m_InlierMatches, OutImage);
@@ -253,7 +263,7 @@ int Stiching::ProcessStitching(String strs[])
 	cvSaveImage("Match features.jpg", &IplImage(OutImage));
 	//waitKey(0);
 
-	//cvDestroyAllWindows();
+	//cvDestroyAllWindows();//关闭所有窗口
 
 	//矩阵H用以存储RANSAC得到的单应矩阵
 	//Mat H = findHomography( m_LeftInlier, m_RightInlier, RANSAC );
@@ -263,10 +273,14 @@ int Stiching::ProcessStitching(String strs[])
 	//④第四次筛选 在解算H时一边Ransac一边选择最大一只鸡
 	Mat tempMask = Mat::ones(m_LeftInlier.size(), 1, CV_8U);
 	int opencv_Inlier = 0;
-	Mat H = findHomography(m_LeftInlier, m_RightInlier, tempMask, RANSAC);
-
+	Mat H = findHomography(m_LeftInlier, m_RightInlier, RANSAC, 3.0,tempMask );
+	
 	vector<Point2f> cv_Leftinlier;
 	vector<Point2f> cv_Rigthinlier;
+	//vector<double> xLSet;
+	//vector<double> yLSet;
+	//vector<double> xRSet;
+	//vector<double> yRSet;
 	cv_Leftinlier.resize(0);
 	cv_Rigthinlier.resize(0);
 	for (int i = 0; i<m_LeftInlier.size(); i++){
@@ -274,49 +288,43 @@ int Stiching::ProcessStitching(String strs[])
 			opencv_Inlier++;
 			cv_Leftinlier.resize(opencv_Inlier, Point2f(m_LeftInlier[i].x, m_LeftInlier[i].y));
 			cv_Rigthinlier.resize(opencv_Inlier, Point2f(m_RightInlier[i].x, m_RightInlier[i].y));
+			xLSet.push_back(m_LeftInlier[i].x);
+			yLSet.push_back(m_LeftInlier[i].y);
+			xRSet.push_back(m_RightInlier[i].x);
+			yRSet.push_back(m_RightInlier[i].y);
 			ofs_opencvinline << m_LeftInlier[i].x << "\t" << m_LeftInlier[i].y << "\t" << m_RightInlier[i].x << "\t" << m_RightInlier[i].y << endl;
 		}
 	}
-	double min_dis, max_dis, mean_dis, middle_dis;
-	homo.getAverageDis(opencv_Inlier, cv_Leftinlier, cv_Rigthinlier, H, min_dis, max_dis, mean_dis, middle_dis);
-	cout << "opencv的内点个数为" << endl << opencv_Inlier << endl;
-//	cout<< endl<< H << endl;
-
-	//double aa1 = 1.045972;
-	//double aa2 = -0.000410;
-	//double aa3 = -3101.372651;
-	//double bb1 = 0.004664;
-	//double bb2 = 1.032072;
-	//double bb3 = 16.766268;
-	//double cc1 = 0.000010;
-	//double cc2 = -0.000005;
-	//double cc3 = 1;
-	//double aa1 = 1.027131;
-	//double aa2 = 0.007651;
-	//double aa3 = -2985.513937;
-	//double bb1 = 0.002849;
-	//double bb2 = 1.017038;
-	//double bb3 = 18.118161;
-	//double cc1 = 0.000005;
-	//double cc2 = 0.000005;
-	//double cc3 = 1;
-
-	//H.at<double>(0, 0) = aa1 / cc3;
-	//H.at<double>(0, 1) = aa2 / cc3;
-	//H.at<double>(0, 2) = aa3/ cc3;
-	//H.at<double>(1, 0) = bb1 / cc3;
-	//H.at<double>(1, 1) = bb2 / cc3;
-	//H.at<double>(1, 2) = bb3 / cc3;
-	//H.at<double>(2, 0) = cc1 / cc3;
-	//H.at<double>(2, 1) = cc2 / cc3;
-	//H.at<double>(2, 2) = 1;
-	cout << "opencv解算总数 ：" << m_LeftInlier.size() << "   内点个数 : " << endl << opencv_Inlier << endl;
-	cout << "opecv解算的投影矩阵H" << endl << H << endl;
+	cout << "opencv解算总数 ：" << m_LeftInlier.size() << "   内点个数 : " << opencv_Inlier << endl;
+	cout << "【opecv解算的投影矩阵H】" << endl << H << endl;
+	m_adjustment.ImportCognominalPoints(xLSet, yLSet, xRSet, yRSet);
+	m_adjustment.SetParameterIntialValue(H);
+	if (m_adjustment.CameraCalibarion())
+	{
+		m_adjustment.GetFinalResult(Parameters);
+	}
+	cout <<endl<< "【迭代算法解算H】" << endl;
+	cout << Parameters[0] << "\t" << Parameters[1] << "\t" << Parameters[2] << endl;
+	cout << Parameters[3] << "\t" << Parameters[4] << "\t" << Parameters[5] << endl;
+	cout << Parameters[6] << "\t" << Parameters[7] << "\t" << 1 << endl;
+	
 	//存储左图四角，及其变换到右图位置
 	std::vector<Point2f> obj_corners(4);
 	obj_corners[0] = Point(0,0); obj_corners[1] = Point( img1.cols, 0 );
 	obj_corners[2] = Point( img1.cols, img1.rows ); obj_corners[3] = Point( 0, img1.rows );
 	std::vector<Point2f> scene_corners(4);
+	H.at<double>(0, 0)=  Parameters[0];
+	H.at<double>(0, 1) = Parameters[1];
+	H.at<double>(0, 2) = Parameters[2];
+	H.at<double>(1, 0) = Parameters[3];
+	H.at<double>(1, 1) = Parameters[4];
+	H.at<double>(1, 2) = Parameters[5];
+	H.at<double>(2, 0) = Parameters[6];
+	H.at<double>(2, 1) = Parameters[7];
+	H.at<double>(2, 2) = 1.0;
+	//计算H矩阵的精度
+	double min_dis, max_dis, mean_dis, middle_dis;
+	homo.getAverageDis(opencv_Inlier, cv_Leftinlier, cv_Rigthinlier, H, min_dis, max_dis, mean_dis, middle_dis);
 	perspectiveTransform( obj_corners, scene_corners, H);
 
 	//画出左图经过H变换后在图像中位置

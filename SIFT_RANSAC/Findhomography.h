@@ -2,7 +2,7 @@
 #include <stdlib.h> 
 #include <stdio.h> 
 #include <math.h> 
-#include <highgui.h> 
+#include <highgui.h>
 using namespace cv;
 class Findhomography
 {
